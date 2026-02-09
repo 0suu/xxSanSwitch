@@ -1,7 +1,7 @@
 name: xx_san_swtich
 description: "VRChat OSC AvatarMover bridge."
 publish_to: 'none'
-version: 1.0.0
+version: 1.0.1
 
 environment:
   sdk: ^3.10.4
