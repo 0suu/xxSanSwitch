@@ -1,8 +1,8 @@
 # xxSanSwtich
 
-VRChat OSC を受信して、AvatarMover 用の入力OSC（`/input/*`）を返す簡易ブリッジです。
+[Booth](https://suu-sai.booth.pm/items/7951345)
 
-このFlutter版は **C#版互換** として、`/input/*` には基本的に **`int 0/1`** を送ります。
+VRChat OSC を受信して、AvatarMover 用の入力OSC（`/input/*`）を返す簡易ブリッジです。
 
 ## 使い方
 
