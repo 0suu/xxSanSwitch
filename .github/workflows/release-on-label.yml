@@ -1,0 +1,67 @@
+name: Release Windows Build On Label
+
+on:
+  pull_request:
+    types: [labeled]
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    if: github.event.label.name == 'Release' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout PR HEAD
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build Windows release
+        run: flutter build windows --release
+
+      - name: Prepare release metadata
+        id: meta
+        shell: pwsh
+        run: |
+          $versionLine = Select-String -Path pubspec.yaml -Pattern '^version:\s*' | Select-Object -First 1
+          if (-not $versionLine) {
+            throw 'Version not found in pubspec.yaml'
+          }
+          $version = ($versionLine.Line -replace '^version:\s*', '').Trim()
+          $shortSha = '${{ github.event.pull_request.head.sha }}'.Substring(0, 7)
+          $tag = "v$version-pr${{ github.event.pull_request.number }}-$shortSha-${{ github.run_id }}"
+          $assetName = "xxSanSwtich-windows-x64-$tag.zip"
+
+          "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "tag=$tag" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "asset_name=$assetName" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+      - name: Package Windows build
+        shell: pwsh
+        run: |
+          $zipPath = Join-Path $env:RUNNER_TEMP '${{ steps.meta.outputs.asset_name }}'
+          Compress-Archive -Path 'build/windows/x64/runner/Release/*' -DestinationPath $zipPath -Force
+          "zip_path=$zipPath" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+        id: package
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.meta.outputs.tag }}
+          target_commitish: ${{ github.event.pull_request.head.sha }}
+          name: ${{ steps.meta.outputs.tag }}
+          generate_release_notes: true
+          body: |
+            Auto-generated Windows build from PR #${{ github.event.pull_request.number }}.
+            Source commit: ${{ github.event.pull_request.head.sha }}
+          files: ${{ steps.package.outputs.zip_path }}
